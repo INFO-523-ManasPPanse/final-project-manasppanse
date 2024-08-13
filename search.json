@@ -1,0 +1,100 @@
+[
+  {
+    "objectID": "presentation.html#a---gdp",
+    "href": "presentation.html#a---gdp",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "A - GDP",
+    "text": "A - GDP"
+  },
+  {
+    "objectID": "presentation.html#b---political-stability",
+    "href": "presentation.html#b---political-stability",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "B - Political Stability",
+    "text": "B - Political Stability"
+  },
+  {
+    "objectID": "presentation.html#a---political-stability-vs-military-expenditure",
+    "href": "presentation.html#a---political-stability-vs-military-expenditure",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "A - Political Stability vs Military Expenditure",
+    "text": "A - Political Stability vs Military Expenditure"
+  },
+  {
+    "objectID": "presentation.html#b---political-stability-vs-pollution-levels",
+    "href": "presentation.html#b---political-stability-vs-pollution-levels",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "B - Political Stability vs Pollution Levels",
+    "text": "B - Political Stability vs Pollution Levels"
+  },
+  {
+    "objectID": "presentation.html#c---defense",
+    "href": "presentation.html#c---defense",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "C - Defense",
+    "text": "C - Defense"
+  },
+  {
+    "objectID": "presentation.html#d---pollution",
+    "href": "presentation.html#d---pollution",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "D - Pollution",
+    "text": "D - Pollution"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "This project was developed for INFO 523 - Data Mining & Discovery at the University of Arizona, taught by Dr. Román-Palacios. The team is comprised of … well, just me.\n\nManas P Panse : Currently pursuing MS - DS @ College of Information Science, University of Arizona."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "",
+    "text": "This project aims to classify countries based on their geopolitical risk using Classification and Regression Trees (CART) with indicators from the World Bank and other sources. We will explore the relationships between various economic, political, and social indicators and geopolitical stability.\n\n# Plot Theme\nggplot2::theme_set(ggplot2::theme_minimal(base_size = 14))\n\n# Set Width of Code Output\noptions(width = 65)\n\n# Set Figure Parameters for knitr\nknitr::opts_chunk$set(\n  fig.width = 7,        # 7\" Width\n  fig.asp = 0.618,      # The Golden Ratio\n  fig.retina = 3,       # DPI Multiplier for Displaying HTML Output on Retina\n  fig.align = \"center\", # Center Align Figures\n  dpi = 300             # Higher DPI, Sharper Image\n)\n\n# Loading Packages\npacman::p_load(\"dplyr\", \"gsubfn\", \"here\", \"knitr\", \"tidyr\", \"stringr\", \"tidyverse\", \"scales\", \"cowplot\")\npacman::p_load(\"rworldmap\", \"rworldxtra\", \"maps\", \"ggplot2\", \"patchwork\", \"gtable\", \"gt\", \"gridExtra\")\npacman::p_load(\"rpart\", \"rpart.plot\")\n\n# Loading Necessary Datasets\ngdp_data &lt;- read.csv(here(\"data/global_gdp.csv\"))\npollution_data &lt;- read.csv(here(\"data/global_pollution.csv\"))\ndefense_data &lt;- read.csv(here(\"data/global_military_expense.csv\"))\npolitical_data &lt;- read.csv(here(\"data/global_political_stability.csv\"))\n\n# Highliting Countries of Interest\ncoi &lt;- c(\"United States\", \"China\", \"Germany\", \"Japan\", \"India\")\n\n# Assigning Colors to Each Country\ncountry_colors &lt;- c(\n  \"United States\" = \"blue\",\n  \"China\" = \"red\",\n  \"Germany\" = \"green\",\n  \"Japan\" = \"purple\",\n  \"India\" = \"orange\"\n)\n\noptions(scipen = 999)\n\n# Cleaning Column Names FOR All Datasets\ncolnames(gdp_data) &lt;- gsub(\"^X\", \"\", colnames(gdp_data))\ncolnames(gdp_data) &lt;- gsub(\"\\\\.\", \"\", colnames(gdp_data))\n\ncolnames(pollution_data) &lt;- gsub(\"^X\", \"\", colnames(pollution_data))\ncolnames(pollution_data) &lt;- gsub(\"\\\\.\", \"\", colnames(pollution_data))\n\ncolnames(defense_data) &lt;- gsub(\"^X\", \"\", colnames(defense_data))\ncolnames(defense_data) &lt;- gsub(\"\\\\.\", \"\", colnames(defense_data))\n\ncolnames(political_data) &lt;- gsub(\"^X\", \"\", colnames(political_data))\ncolnames(political_data) &lt;- gsub(\"\\\\.\", \"\", colnames(political_data))\n\n# Convert the relevant columns to numeric, skipping the first column (Country Names)\ngdp_data &lt;- gdp_data %&gt;%\n  mutate(across(-CountryName, ~ as.numeric(.)))\n\npollution_data &lt;- pollution_data %&gt;%\n  mutate(across(-CountryName, ~ as.numeric(.)))\n\ndefense_data &lt;- defense_data %&gt;%\n  mutate(across(-CountryName, ~ as.numeric(.)))\n\npolitical_data &lt;- political_data %&gt;%\n  mutate(across(-CountryName, ~ as.numeric(.)))\n\n# Reshaping into Long Format\ngdp_long &lt;- gdp_data %&gt;%\n  pivot_longer(\n    cols = -CountryName,\n    names_to = \"Year\",\n    values_to = \"GDP\"\n  )\n\npollution_long &lt;- pollution_data %&gt;%\n  pivot_longer(\n    cols = -CountryName,\n    names_to = \"Year\",\n    values_to = \"Pollution Level\"\n  )\n\ndefense_long &lt;- defense_data %&gt;%\n  pivot_longer(\n    cols = -CountryName,\n    names_to = \"Year\",\n    values_to = \"Expenditure\"\n  )\n\npolitical_long &lt;- political_data %&gt;%\n  pivot_longer(\n    cols = -CountryName,\n    names_to = \"Year\",\n    values_to = \"Ranking\"\n  )\n\n# Ensuring values are `numeric` In All Datasets\ngdp_long &lt;- gdp_long %&gt;%\n  filter(CountryName %in% coi, !is.na(Year), !is.na(GDP)) %&gt;%\n  mutate(Year = as.numeric(as.character(Year))) %&gt;%\n  mutate(GDP = as.numeric(as.character(GDP)))\n\npollution_long &lt;- pollution_long %&gt;%\n  filter(CountryName %in% coi, !is.na(Year), !is.na(`Pollution Level`)) %&gt;%\n  mutate(Year = as.numeric(as.character(Year)))\n\ndefense_long &lt;- defense_long %&gt;%\n  filter(CountryName %in% coi, !is.na(Year), !is.na(Expenditure)) %&gt;%\n  mutate(Year = as.numeric(as.character(Year))) %&gt;%\n  mutate(Expenditure = as.numeric(as.character(Expenditure)))\n\npolitical_long &lt;- political_long %&gt;%\n  filter(CountryName %in% coi, !is.na(Year), !is.na(Ranking)) %&gt;%\n  mutate(Year = as.numeric(as.character(Year)))\n\n# Creating a MEGASET for Future Use & Rearranging Da\ncombined_long &lt;- gdp_long %&gt;%\n  inner_join(pollution_long, by = c(\"CountryName\", \"Year\")) %&gt;%\n  inner_join(defense_long, by = c(\"CountryName\", \"Year\")) %&gt;%\n  inner_join(political_long, by = c(\"CountryName\", \"Year\")) %&gt;%\n  na.omit()"
+  },
+  {
+    "objectID": "index.html#a---defense",
+    "href": "index.html#a---defense",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "A - Defense",
+    "text": "A - Defense\n\ncombined_long %&gt;%\n  ggplot(aes(x = Year, y = Expenditure / 1000000000, color = fct_relevel(CountryName, coi))) +\n  geom_smooth(se = FALSE) +\n  theme_bw() +\n  labs(\n    title = \"Military Expenditure Trends (2010 - 2019)\",\n    x = \"Year\", y = \"GDP\", color = \"Country\",\n    caption = \"GDP Data Collected from: World Bank Development Data Group -&gt; World Bank Open Data\"\n  ) +\n  scale_color_manual(values = country_colors) +\n  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +\n  theme(\n    plot.title = element_text(size = 12.5, hjust = 0.5),\n    plot.subtitle = element_text(size = 7.5, hjust = 0.5),\n    legend.title = element_text(size = 10),\n    legend.text = element_text(size = 7.5),\n    legend.position = \"top\"\n  )"
+  },
+  {
+    "objectID": "index.html#b---gdp",
+    "href": "index.html#b---gdp",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "B - GDP",
+    "text": "B - GDP\n\ncombined_long %&gt;%\n  ggplot(aes(x = Year, y = GDP / 1000000000, color = fct_relevel(CountryName, coi))) +\n  geom_smooth(se = FALSE) +\n  theme_bw() +\n  labs(\n    title = \"GDP Trends (2010 - 2019)\",\n    x = \"Year\", y = \"GDP\", color = \"Country\",\n    caption = \"GDP Data Collected from: World Bank Development Data Group -&gt; World Bank Open Data\"\n  ) +\n  scale_color_manual(values = country_colors) +\n  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +\n  theme(\n    plot.title = element_text(size = 12.5, hjust = 0.5),\n    plot.subtitle = element_text(size = 7.5, hjust = 0.5),\n    legend.title = element_text(size = 10),\n    legend.text = element_text(size = 7.5),\n    legend.position = \"top\"\n  )"
+  },
+  {
+    "objectID": "index.html#c---political-stability",
+    "href": "index.html#c---political-stability",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "C - Political Stability",
+    "text": "C - Political Stability\n\ncombined_long %&gt;%\n  ggplot(aes(x = Year, y = Ranking, color = fct_relevel(CountryName, coi))) +\n  geom_smooth(se = FALSE) +\n  theme_bw() +\n  labs(\n    title = \"Political Stability Trends (2010 - 2019)\",\n    x = \"Year\", y = \"GDP\", color = \"Country\",\n    caption = \"GDP Data Collected from: World Bank Development Data Group -&gt; World Bank Open Data\"\n  ) +\n  scale_color_manual(values = country_colors) +\n  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +\n  theme(\n    plot.title = element_text(size = 12.5, hjust = 0.5),\n    plot.subtitle = element_text(size = 7.5, hjust = 0.5),\n    legend.title = element_text(size = 10),\n    legend.text = element_text(size = 7.5),\n    legend.position = \"top\"\n  )"
+  },
+  {
+    "objectID": "index.html#d---pollution",
+    "href": "index.html#d---pollution",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "D - Pollution",
+    "text": "D - Pollution\n\ncombined_long %&gt;%\n  ggplot(aes(x = Year, y = `Pollution Level`, color = fct_relevel(CountryName, coi))) +\n  geom_smooth(se = FALSE) +\n  theme_bw() +\n  labs(\n    title = \"Pollution Trends (2010 - 2019)\",\n    x = \"Year\", y = \"GDP\", color = \"Country\",\n    caption = \"GDP Data Collected from: World Bank Development Data Group -&gt; World Bank Open Data\"\n  ) +\n  scale_color_manual(values = country_colors) +\n  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +\n  theme(\n    plot.title = element_text(size = 12.5, hjust = 0.5),\n    plot.subtitle = element_text(size = 7.5, hjust = 0.5),\n    legend.title = element_text(size = 10),\n    legend.text = element_text(size = 7.5),\n    legend.position = \"top\"\n  )"
+  },
+  {
+    "objectID": "index.html#a---political-stability-military-expenditure",
+    "href": "index.html#a---political-stability-military-expenditure",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "A - Political Stability & Military Expenditure",
+    "text": "A - Political Stability & Military Expenditure\n\n# CART Model for GDP based on Poitical Stability, Pollution Levels and Military Expenditure\npolitical_stability_cart &lt;- rpart(Ranking ~ Expenditure, data = combined_long, method = \"anova\")\n\n# Plotting CART Model\nrpart.plot(\n  political_stability_cart,\n  main = \"CART Model - Political Stability vs Military Expenditure\",\n  type = 3, digits = -2, varlen = 0, faclen = 0, fallen.leaves = TRUE\n)"
+  },
+  {
+    "objectID": "index.html#b---political-stability-pollution-levels",
+    "href": "index.html#b---political-stability-pollution-levels",
+    "title": "Geopolitical Risk Analysis using CART",
+    "section": "B - Political Stability & Pollution Levels",
+    "text": "B - Political Stability & Pollution Levels\n\n# CART Model for GDP based on Poitical Stability, Pollution Levels and Military Expenditure\npolitical_stability_cart &lt;- rpart(Ranking ~ `Pollution Level`, data = combined_long, method = \"anova\")\n\n# Plotting CART Model\nrpart.plot(political_stability_cart, main = \"CART Model - Political Stability vs Pollution Level & Military\")"
+  }
+]
