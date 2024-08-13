@@ -1,0 +1,309 @@
+---
+title: "Geopolitical Risk Analysis using CART"
+authors:
+  - name: "Manas P Panse"
+    affiliations: "College of Information Science, University of Arizona"
+description: "A panoramic overview & analysis of the relationships between various economic, political, social factors and geopolitical stability."
+title-slide-attributes:
+  data-background-image: images/watercolour_sys02_img34_teacup-ocean.jpg
+  data-background-size: stretch
+  data-background-opacity: "0.7"
+  data-slide-number: none
+format:
+  revealjs:
+    theme:  ['data/customtheming.scss']
+editor: visual
+code-annotations: hover
+execute:
+  warning: false
+  message: false
+  error: false
+---
+
+# 1 - Introduction
+
+<div style="font-size: 25px;">
+
+Welcome to today’s presentation on "Geopolitical Risk Analysis using CART." This project delves into the interplay of economic, political, and environmental factors influencing political stability across the "BIG 5" countries — the United States, China, Germany, Japan, and India — from 2010 to 2019. This analysis is divided into two parts: Part 1 focuses on the datasets and models, while Part 2 examines current global events from a geopolitical perspective.
+
+My approach utilizes Classification and Regression Trees (CART) to reveal trends and insights that assist in predicting and mitigating geopolitical risks. We will explore how GDP trends, political stability, military expenditure, and pollution levels impact global power dynamics and stability. This analysis aims to provide actionable intelligence for policymakers, defense experts, and environmental strategists, enhancing their decision-making in a complex international landscape. Let’s begin by examining the GDP trends of these major economies and their implications for geopolitical stability.
+
+```{r}
+#| label: workspace-setup
+#| warning: false
+#| message: false
+#| echo: false
+
+# Plot Theme
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 14))
+
+# Set Width of Code Output
+options(width = 65)
+
+# Set Figure Parameters for knitr
+knitr::opts_chunk$set(
+  fig.width = 7,        # 7" Width
+  fig.asp = 0.618,      # The Golden Ratio
+  fig.retina = 3,       # DPI Multiplier for Displaying HTML Output on Retina
+  fig.align = "center", # Center Align Figures
+  dpi = 300             # Higher DPI, Sharper Image
+)
+
+# Loading Packages
+pacman::p_load("dplyr", "gsubfn", "here", "knitr", "tidyr", "stringr", "tidyverse", "scales", "cowplot")
+pacman::p_load("rworldmap", "rworldxtra", "maps", "ggplot2", "patchwork", "gtable", "gt", "gridExtra")
+pacman::p_load("rpart", "rpart.plot")
+
+# Loading Necessary Datasets
+gdp_data <- read.csv(here("data/global_gdp.csv"))
+pollution_data <- read.csv(here("data/global_pollution.csv"))
+defense_data <- read.csv(here("data/global_military_expense.csv"))
+political_data <- read.csv(here("data/global_political_stability.csv"))
+
+# Highliting Countries of Interest
+coi <- c("United States", "China", "Germany", "Japan", "India")
+
+# Assigning Colors to Each Country
+country_colors <- c(
+  "United States" = "blue",
+  "China" = "red",
+  "Germany" = "green",
+  "Japan" = "purple",
+  "India" = "orange"
+)
+
+options(scipen = 999)
+
+# Cleaning Column Names FOR All Datasets
+colnames(gdp_data) <- gsub("^X", "", colnames(gdp_data))
+colnames(gdp_data) <- gsub("\\.", "", colnames(gdp_data))
+
+colnames(pollution_data) <- gsub("^X", "", colnames(pollution_data))
+colnames(pollution_data) <- gsub("\\.", "", colnames(pollution_data))
+
+colnames(defense_data) <- gsub("^X", "", colnames(defense_data))
+colnames(defense_data) <- gsub("\\.", "", colnames(defense_data))
+
+colnames(political_data) <- gsub("^X", "", colnames(political_data))
+colnames(political_data) <- gsub("\\.", "", colnames(political_data))
+
+# Convert the relevant columns to numeric, skipping the first column (Country Names)
+gdp_data <- gdp_data %>%
+  mutate(across(-CountryName, ~ as.numeric(.)))
+
+pollution_data <- pollution_data %>%
+  mutate(across(-CountryName, ~ as.numeric(.)))
+
+defense_data <- defense_data %>%
+  mutate(across(-CountryName, ~ as.numeric(.)))
+
+political_data <- political_data %>%
+  mutate(across(-CountryName, ~ as.numeric(.)))
+
+# Reshaping into Long Format
+gdp_long <- gdp_data %>%
+  pivot_longer(
+    cols = -CountryName,
+    names_to = "Year",
+    values_to = "GDP"
+  )
+
+pollution_long <- pollution_data %>%
+  pivot_longer(
+    cols = -CountryName,
+    names_to = "Year",
+    values_to = "Pollution Level"
+  )
+
+defense_long <- defense_data %>%
+  pivot_longer(
+    cols = -CountryName,
+    names_to = "Year",
+    values_to = "Expenditure"
+  )
+
+political_long <- political_data %>%
+  pivot_longer(
+    cols = -CountryName,
+    names_to = "Year",
+    values_to = "Ranking"
+  )
+
+# Ensuring values are `numeric` In All Datasets
+gdp_long <- gdp_long %>%
+  filter(CountryName %in% coi, !is.na(Year), !is.na(GDP)) %>%
+  mutate(Year = as.numeric(as.character(Year))) %>%
+  mutate(GDP = as.numeric(as.character(GDP)))
+
+pollution_long <- pollution_long %>%
+  filter(CountryName %in% coi, !is.na(Year), !is.na(`Pollution Level`)) %>%
+  mutate(Year = as.numeric(as.character(Year)))
+
+defense_long <- defense_long %>%
+  filter(CountryName %in% coi, !is.na(Year), !is.na(Expenditure)) %>%
+  mutate(Year = as.numeric(as.character(Year))) %>%
+  mutate(Expenditure = as.numeric(as.character(Expenditure)))
+
+political_long <- political_long %>%
+  filter(CountryName %in% coi, !is.na(Year), !is.na(Ranking)) %>%
+  mutate(Year = as.numeric(as.character(Year)))
+
+# Creating a MEGASET for Future Use & Rearranging Da
+combined_long <- gdp_long %>%
+  inner_join(pollution_long, by = c("CountryName", "Year")) %>%
+  inner_join(defense_long, by = c("CountryName", "Year")) %>%
+  inner_join(political_long, by = c("CountryName", "Year")) %>%
+  na.omit()
+```
+
+# 1 - The BIG 5 Trends
+
+## A - GDP
+
+```{r}
+#| label: gdp-trend
+#| warning: false
+#| message: false
+#| echo: false
+
+combined_long %>%
+  ggplot(aes(x = Year, y = GDP / 10000000000, color = fct_relevel(CountryName, coi))) +
+  geom_smooth(se = FALSE) +
+  theme_bw() +
+  labs(
+    title = "GDP Trends (2010 - 2019)",
+    x = "Year", y = "GDP (in $10B)", color = "Country",
+    caption = "GDP Data Collected from: World Bank Development Data Group -> World Bank Open Data"
+  ) +
+  scale_color_manual(values = country_colors) +
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +
+  theme(
+    plot.title = element_text(size = 12.5, hjust = 0.5),
+    plot.subtitle = element_text(size = 7.5, hjust = 0.5),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 7.5),
+    legend.position = "top"
+  )
+```
+
+## B - Political Stability
+
+```{r}
+#| label: political-stability-trend
+#| warning: false
+#| message: false
+#| echo: false
+
+combined_long %>%
+  ggplot(aes(x = Year, y = Ranking, color = fct_relevel(CountryName, coi))) +
+  geom_smooth(se = FALSE) +
+  theme_bw() +
+  labs(
+    title = "Political Stability Trends (2010 - 2019)",
+    x = "Year", y = "Stability Rating", color = "Country",
+    caption = "GDP Data Collected from: World Bank Development Data Group -> World Bank Open Data"
+  ) +
+  scale_color_manual(values = country_colors) +
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +
+  theme(
+    plot.title = element_text(size = 12.5, hjust = 0.5),
+    plot.subtitle = element_text(size = 7.5, hjust = 0.5),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 7.5),
+    legend.position = "top"
+  )
+```
+
+# 2 - Correlation between Factors
+
+## A - Political Stability vs Military Expenditure
+
+```{r}
+#| label: politicalstability-vs-militaryexpenditure
+#| warning: false
+#| message: false
+#| echo: false
+
+# CART Model for Political Stability based on Military Expenditure
+political_stability_cart <- rpart(Ranking ~ Expenditure, data = combined_long, method = "anova")
+
+# Plotting CART Model
+rpart.plot(
+  political_stability_cart,
+  main = "CART Model - Political Stability vs Military Expenditure",
+  type = 3, digits = -2, varlen = 0, faclen = 0, fallen.leaves = TRUE
+)
+```
+
+## B - Political Stability vs Pollution Levels
+
+```{r}
+#| label: politicalstability-vs-pollution
+#| warning: false
+#| message: false
+#| echo: false
+
+# CART Model for Political Stability based on Pollution Levels
+political_stability_cart <- rpart(Ranking ~ `Pollution Level`, data = combined_long, method = "anova")
+
+# Plotting CART Model
+rpart.plot(political_stability_cart, main = "CART Model - Political Stability vs Pollution Level & Military")
+```
+
+# 1 - The BIG 5 Trends
+
+## C - Defense
+
+```{r}
+#| label: defense-trend
+#| warning: false
+#| message: false
+#| echo: false
+
+combined_long %>%
+  ggplot(aes(x = Year, y = Expenditure / 10000000000, color = fct_relevel(CountryName, coi))) +
+  geom_smooth(se = FALSE) +
+  theme_bw() +
+  labs(
+    title = "Military Expenditure Trends (2010 - 2019)",
+    x = "Year", y = "Expenditure (in $10B)", color = "Country",
+    caption = "GDP Data Collected from: World Bank Development Data Group -> World Bank Open Data"
+  ) +
+  scale_color_manual(values = country_colors) +
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +
+  theme(
+    plot.title = element_text(size = 12.5, hjust = 0.5),
+    plot.subtitle = element_text(size = 7.5, hjust = 0.5),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 7.5),
+    legend.position = "top"
+  )
+```
+
+## D - Pollution
+
+```{r}
+#| label: pollution-trend
+#| warning: false
+#| message: false
+#| echo: false
+
+combined_long %>%
+  ggplot(aes(x = Year, y = `Pollution Level`, color = fct_relevel(CountryName, coi))) +
+  geom_smooth(se = FALSE) +
+  theme_bw() +
+  labs(
+    title = "Pollution Trends (2010 - 2019)",
+    x = "Year", y = "Pollution Rating (Mean Annual Exposure)", color = "Country",
+    caption = "GDP Data Collected from: World Bank Development Data Group -> World Bank Open Data"
+  ) +
+  scale_color_manual(values = country_colors) +
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018)) +
+  theme(
+    plot.title = element_text(size = 12.5, hjust = 0.5),
+    plot.subtitle = element_text(size = 7.5, hjust = 0.5),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 7.5),
+    legend.position = "top"
+  )
+```

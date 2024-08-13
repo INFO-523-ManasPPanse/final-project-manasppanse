@@ -1,0 +1,9 @@
+---
+title: "About"
+format: html
+editor: visual
+---
+
+This project was developed for [INFO 523 - Data Mining & Discovery](https://datadiversitylab.github.io/) at the University of Arizona, taught by Dr. Román-Palacios. The team is comprised of ... well, just me.
+
+-   Manas P Panse : Currently pursuing MS - DS \@ College of Information Science, University of Arizona.
